@@ -32,6 +32,7 @@ pub(crate) struct PipelineMessage(
 );
 
 pub(crate) struct PipelineSharedState {
+    pub(crate) message_filter: scc::HashSet<u32>,
     pub(crate) should_block_events: AtomicBool,
     pub(crate) wnd_proc: WndProcType,
     pub(crate) tx: Sender<PipelineMessage>,
@@ -70,6 +71,7 @@ impl<T: RenderEngine> Pipeline<T> {
 
         let (tx, rx) = mpsc::channel();
         let shared_state = Arc::new(PipelineSharedState {
+            message_filter: scc::HashSet::new(),
             should_block_events: AtomicBool::new(false),
             wnd_proc,
             tx,
@@ -98,6 +100,8 @@ impl<T: RenderEngine> Pipeline<T> {
             imgui_wnd_proc_impl(hwnd, umsg, wparam, lparam, self);
         });
         self.queue_buffer.set(queue_buffer).expect("OnceCell should be empty");
+
+        self.render_loop.update_message_filter(&self.shared_state.message_filter);
 
         let should_block_events = self.render_loop.should_block_messages(self.ctx.io_mut());
 
@@ -183,7 +187,7 @@ unsafe extern "system" fn pipeline_wnd_proc(
     // expresses the intent as of *before* the current message was received.
     let should_block_messages = shared_state.should_block_events.load(Ordering::SeqCst);
 
-    if should_block_messages {
+    if should_block_messages || shared_state.message_filter.contains(&msg) {
         LRESULT(1)
     } else {
         CallWindowProcW(Some(shared_state.wnd_proc), hwnd, msg, wparam, lparam)

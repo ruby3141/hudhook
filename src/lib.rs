@@ -259,11 +259,15 @@ pub trait ImguiRenderLoop {
     /// Called during the window procedure.
     fn on_wnd_proc(&self, _hwnd: HWND, _umsg: u32, _wparam: WPARAM, _lparam: LPARAM) {}
 
-    /// If this method returns `true`, the WndProc function will not call the
-    /// procedure of the parent window.
+    /// Any windows messages received while this method returns `true`
+    /// would not invoke parent window's WndProc.
     fn should_block_messages(&self, _io: &Io) -> bool {
         false
     }
+
+    /// Windows message with identifier included in the `message_filter`
+    /// would not invoke parent window's WndProc.
+    fn update_message_filter(&self, _message_filter: &scc::HashSet<u32>) {}
 }
 
 /// Generic trait for platform-specific hooks.
